@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日本カレンダー</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+  background: #f0ede8;
+  color: #333;
+  min-height: 100vh;
+}
+header {
+  background: #2c3e50;
+  color: white;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.nav-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+.nav-btn:hover, .nav-btn:active { background: rgba(255,255,255,0.3); }
+.header-center { text-align: center; }
+.month-title { font-size: 1.35rem; font-weight: bold; letter-spacing: 1px; }
+.year-title { font-size: 0.82rem; color: #bbb; margin-top: 2px; }
+.today-btn {
+  background: #e74c3c;
+  border: none;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+.calendar-wrap { max-width: 960px; margin: 0 auto; padding: 14px; }
+
+/* ===== 凡例 ===== */
+.legend-wrap {
+  background: white;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.legend-section { margin-bottom: 6px; }
+.legend-section:last-child { margin-bottom: 0; }
+.legend-title { font-size: 0.7rem; color: #999; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px; }
+.legend-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.72rem; color: #555; }
+.legend-badge { font-size: 0.65rem; font-weight: bold; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
+
+/* ===== 曜日ヘッダー ===== */
+.weekday-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+}
+.weekday-cell {
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: bold;
+  padding: 5px 0;
+  border-radius: 6px;
+}
+.weekday-cell.sun { color: #c0392b; }
+.weekday-cell.sat { color: #1a6a9a; }
+.weekday-cell.wkd { color: #555; }
+
+/* ===== カレンダーグリッド ===== */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+/* ---- セル基本 ---- */
+.day-cell {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 5px 4px 4px 6px;
+  min-height: 96px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  transition: transform 0.12s, box-shadow 0.12s;
+  cursor: default;
+  overflow: hidden;
+}
+.day-cell:not(.other-month):hover {
+  transform: scale(1.025);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.14);
+  z-index: 2;
+}
+
+/* ---- 曜日別背景 ---- */
+.day-cell.saturday  { background: #e8f4fd; }
+.day-cell.sunday    { background: #fde8ee; }
+.day-cell.holiday   { background: #fde8ee; }
+
+/* ---- 他月 ---- */
+.day-cell.other-month { opacity: 0.42; }
+.day-cell.other-month.saturday { background: #d6edf8; }
+.day-cell.other-month.sunday   { background: #f8d9e3; }
+
+/* ---- 今日 ---- */
+.day-cell.today {
+  outline: 2.5px solid #e74c3c;
+  outline-offset: -2px;
+}
+
+/* ---- 天赦日 特別 ---- */
+.day-cell.tensha {
+  background: linear-gradient(135deg, #fffbe6 0%, #fff3cd 100%);
+  box-shadow: 0 1px 6px rgba(218,165,32,0.35);
+}
+.day-cell.tensha.saturday { background: linear-gradient(135deg, #e8f4fd 0%, #fff3cd 100%); }
+.day-cell.tensha.sunday,
+.day-cell.tensha.holiday  { background: linear-gradient(135deg, #fde8ee 0%, #fff3cd 100%); }
+
+/* ---- 大吉日（吉日2つ以上） ---- */
+.day-cell.taikichi {
+  box-shadow: 0 0 0 2px #f0c040, 0 2px 8px rgba(218,165,32,0.3);
+}
+
+/* ---- 日付数字 ---- */
+.day-num {
+  font-size: 1.05rem;
+  font-weight: bold;
+  line-height: 1;
+  margin-bottom: 2px;
+  display: inline-block;
+}
+.day-cell.sunday .day-num,
+.day-cell.holiday .day-num  { color: #c0392b; }
+.day-cell.saturday .day-num { color: #1a6a9a; }
+
+.day-cell.today .day-num {
+  background: #e74c3c;
+  color: white !important;
+  width: 26px; height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.95rem;
+}
+
+/* ---- 祝日名 ---- */
+.holiday-name {
+  font-size: 0.54rem;
+  color: #c0392b;
+  font-weight: bold;
+  line-height: 1.25;
+  margin-bottom: 2px;
+  word-break: break-all;
+}
+
+/* ---- 吉凶バッジ群 ---- */
+.special-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 2px;
+  margin-bottom: 20px; /* ロクヨウ分の余白 */
+}
+.sbadge {
+  font-size: 0.58rem;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 8px;
+  white-space: nowrap;
+  line-height: 1.5;
+  letter-spacing: 0.2px;
+}
+/* 天赦日 */
+.sbadge-tensha    { background: #fff3cd; color: #8a6a00; border: 1px solid #f0c040; }
+/* 一粒万倍日 */
+.sbadge-ichiryuu  { background: #d5f5e3; color: #1a7a45; border: 1px solid #52be80; }
+/* 寅の日 */
+.sbadge-tora      { background: #fde8d0; color: #a04000; border: 1px solid #e67e22; }
+/* 巳の日 */
+.sbadge-mi        { background: #ede0f8; color: #6c3483; border: 1px solid #9b59b6; }
+/* 天一天上 */
+.sbadge-tenichi   { background: #d6eaf8; color: #1a4f7a; border: 1px solid #3498db; }
+/* 不成就日 */
+.sbadge-fujoju    { background: #f0f0f0; color: #666; border: 1px solid #bbb; }
+
+/* ---- 六曜 ---- */
+.rokuyo {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  font-size: 0.63rem;
+  font-weight: bold;
+  padding: 1px 5px;
+  border-radius: 8px;
+  letter-spacing: 0.3px;
+}
+.rokuyo-大安 { background: #d5f5e3; color: #1a7a45; }
+.rokuyo-仏滅 { background: #fde8e8; color: #c0392b; }
+.rokuyo-友引 { background: #fef3cd; color: #8a6a00; }
+.rokuyo-先勝 { background: #d6eaf8; color: #1a6a9a; }
+.rokuyo-先負 { background: #ede0f8; color: #6c3483; }
+.rokuyo-赤口 { background: #fde8d0; color: #a04000; }
+
+/* ===== サマリー ===== */
+.month-summary {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  font-size: 0.82rem;
+  color: #555;
+}
+.month-summary h3 { font-size: 0.88rem; margin-bottom: 8px; color: #333; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.tag-holiday {
+  background: #fde8ee; color: #c0392b;
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 0.75rem; font-weight: bold;
+}
+.tag-lucky {
+  background: #fff3cd; color: #8a6a00;
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 0.75rem; font-weight: bold;
+}
+
+/* ===== スマホ ===== */
+@media (max-width: 520px) {
+  .calendar-wrap { padding: 8px; }
+  .day-cell { min-height: 78px; padding: 4px 2px 4px 4px; border-radius: 8px; }
+  .day-num { font-size: 0.95rem; }
+  .sbadge { font-size: 0.52rem; padding: 1px 3px; }
+  .rokuyo { font-size: 0.55rem; padding: 1px 3px; }
+  .holiday-name { font-size: 0.48rem; }
+  .month-title { font-size: 1.15rem; }
+  .nav-btn { padding: 7px 10px; font-size: 0.85rem; }
+  .day-cell.today .day-num { width: 23px; height: 23px; font-size: 0.88rem; }
+  .special-badges { margin-bottom: 18px; }
+}
+@media (max-width: 380px) {
+  .day-cell { min-height: 66px; }
+  .rokuyo { display: none; }
+  .sbadge { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="nav-btn" onclick="prevMonth()">&#9664; 前月</button>
+  <div class="header-center">
+    <div class="month-title" id="month-title"></div>
+    <div class="year-title" id="year-title"></div>
+    <button class="today-btn" onclick="goToday()">今月</button>
+  </div>
+  <button class="nav-btn" onclick="nextMonth()">次月 &#9654;</button>
+</header>
+
+<div class="calendar-wrap">
+
+  <!-- 凡例 -->
+  <div class="legend-wrap">
+    <div class="legend-section">
+      <div class="legend-title">六曜</div>
+      <div class="legend-row">
+        <div class="legend-item"><span class="legend-badge rokuyo-大安">大安</span>最吉</div>
+        <div class="legend-item"><span class="legend-badge rokuyo-友引">友引</span>吉（葬儀避）</div>
+        <div class="legend-item"><span class="legend-badge rokuyo-先勝">先勝</span>午前吉</div>
+        <div class="legend-item"><span class="legend-badge rokuyo-先負">先負</span>午後吉</div>
+        <div class="legend-item"><span class="legend-badge rokuyo-赤口">赤口</span>正午のみ吉</div>
+        <div class="legend-item"><span class="legend-badge rokuyo-仏滅">仏滅</span>大凶</div>
+      </div>
+    </div>
+    <div class="legend-section">
+      <div class="legend-title">吉凶日</div>
+      <div class="legend-row">
+        <div class="legend-item"><span class="legend-badge sbadge-tensha">⭐天赦日</span>年に数回・最強開運</div>
+        <div class="legend-item"><span class="legend-badge sbadge-ichiryuu">🌱一粒万倍</span>始め事に最吉</div>
+        <div class="legend-item"><span class="legend-badge sbadge-tora">🐯寅の日</span>金運↑</div>
+        <div class="legend-item"><span class="legend-badge sbadge-mi">🐍巳の日</span>弁財天縁日</div>
+        <div class="legend-item"><span class="legend-badge sbadge-tenichi">☀天一天上</span>方位障りなし</div>
+        <div class="legend-item"><span class="legend-badge sbadge-fujoju">✖不成就</span>何事も不成就</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 曜日ヘッダー -->
+  <div class="weekday-header">
+    <div class="weekday-cell sun">日</div>
+    <div class="weekday-cell wkd">月</div>
+    <div class="weekday-cell wkd">火</div>
+    <div class="weekday-cell wkd">水</div>
+    <div class="weekday-cell wkd">木</div>
+    <div class="weekday-cell wkd">金</div>
+    <div class="weekday-cell sat">土</div>
+  </div>
+
+  <div class="calendar-grid" id="calendar-grid"></div>
+  <div class="month-summary" id="month-summary"></div>
+</div>
+
+<script>
+// =============================================
+// 旧暦新月テーブル [JDN, 旧暦月]
+// =============================================
+const NEW_MOON_TABLE = [
+  [2458166,1],[2458195,2],[2458225,3],[2458254,4],[2458284,5],[2458313,6],
+  [2458342,7],[2458372,8],[2458401,9],[2458431,10],[2458460,11],[2458490,12],
+  [2458520,1],[2458550,2],[2458579,3],[2458609,4],[2458638,5],[2458668,6],
+  [2458697,7],[2458726,8],[2458756,9],[2458785,10],[2458815,11],[2458844,12],
+  [2458874,1],[2458904,2],[2458933,3],[2458963,4],[2458993,4],[2459022,5],
+  [2459052,6],[2459081,7],[2459110,8],[2459140,9],[2459169,10],[2459199,11],
+  [2459228,12],[2459258,1],[2459287,2],[2459317,3],[2459347,4],[2459376,5],
+  [2459406,6],[2459435,7],[2459465,8],[2459494,9],[2459524,10],[2459553,11],
+  [2459583,12],[2459612,1],[2459642,2],[2459671,3],[2459701,4],[2459730,5],
+  [2459760,6],[2459790,7],[2459819,8],[2459849,9],[2459878,10],[2459908,11],
+  [2459937,12],[2459967,1],[2459996,2],[2460026,2],[2460055,3],[2460085,4],
+  [2460114,5],[2460144,6],[2460173,7],[2460203,8],[2460233,9],[2460262,10],
+  [2460292,11],[2460321,12],[2460351,1],[2460380,2],[2460410,3],[2460439,4],
+  [2460468,5],[2460498,6],[2460527,7],[2460557,8],[2460587,9],[2460616,10],
+  [2460646,11],[2460676,12],[2460705,1],[2460735,2],[2460764,3],[2460794,4],
+  [2460823,5],[2460852,6],[2460882,6],[2460911,7],[2460941,8],[2460970,9],
+  [2461000,10],[2461030,11],[2461060,12],[2461089,1],[2461119,2],[2461148,3],
+  [2461178,4],[2461207,5],[2461236,6],[2461266,7],[2461295,8],[2461325,9],
+  [2461354,10],[2461384,11],[2461414,12],[2461444,1],[2461473,2],[2461503,3],
+  [2461532,4],[2461562,5],[2461591,6],[2461620,7],[2461650,8],[2461679,9],
+  [2461708,10],[2461738,11],[2461768,12],[2461798,1],[2461827,2],[2461857,3],
+  [2461887,4],[2461916,5],[2461946,5],[2461975,6],[2462004,7],[2462034,8],
+  [2462063,9],[2462092,10],[2462122,11],[2462152,12],[2462181,1],[2462211,2],
+  [2462241,3],[2462270,4],[2462300,5],[2462330,6],[2462359,7],[2462388,8],
+  [2462418,9],[2462447,10],[2462476,11],[2462506,12],[2462536,1],[2462565,2],
+  [2462595,3],[2462624,4],[2462654,5],[2462684,6],[2462713,7],[2462743,8],
+  [2462772,9],[2462802,10],[2462831,11],[2462861,12],[2462890,1],[2462920,2],
+  [2462949,3],[2462979,3],[2463008,4],[2463038,5],[2463067,6],[2463097,7],
+  [2463127,8],[2463156,9],[2463186,10],[2463215,11],[2463245,12],[2463274,1],
+  [2463304,2],[2463333,3],[2463362,4],[2463392,5],[2463421,6],[2463451,7],
+  [2463481,8],[2463510,9],[2463540,10],[2463570,11],[2463599,12],[2463629,1],
+  [2463658,2],[2463688,3],[2463717,4],[2463746,5],[2463776,6],[2463805,7],
+  [2463835,8],[2463864,9],[2463894,10],[2463924,11],[2463954,12]
+];
+
+// =============================================
+// 基本変換
+// =============================================
+function dateToJDN(y, m, d) {
+  if (m <= 2) { y--; m += 12; }
+  const A = Math.floor(y / 100);
+  const B = 2 - A + Math.floor(A / 4);
+  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + d + B - 1524;
+}
+
+// 旧暦月・日
+function getLunarDate(y, m, d) {
+  const jdn = dateToJDN(y, m, d);
+  let lo = 0, hi = NEW_MOON_TABLE.length - 1, idx = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (NEW_MOON_TABLE[mid][0] <= jdn) { idx = mid; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  const [nmJDN, lm] = NEW_MOON_TABLE[idx];
+  return { lunarMonth: lm, lunarDay: jdn - nmJDN + 1 };
+}
+
+// 干支インデックス (0=甲子 … 59=癸亥)
+// 基準: JDN 2451545 (2000/1/1) = 庚辰 = index 16
+function etoIndex(y, m, d) {
+  return ((dateToJDN(y, m, d) - 2451545 + 16) % 60 + 60) % 60;
+}
+
+// 地支インデックス (0=子 1=丑 2=寅 3=卯 4=辰 5=巳 6=午 7=未 8=申 9=酉 10=戌 11=亥)
+function jishi(y, m, d) {
+  return etoIndex(y, m, d) % 12;
+}
+
+// =============================================
+// 六曜
+// =============================================
+const ROKUYO_NAMES = ['大安','赤口','先勝','友引','先負','仏滅'];
+function getRokuyo(y, m, d) {
+  const { lunarMonth, lunarDay } = getLunarDate(y, m, d);
+  return ROKUYO_NAMES[(lunarMonth + lunarDay) % 6];
+}
+
+// =============================================
+// 吉凶日
+// =============================================
+
+// ---- 天赦日 ----
+// 旧暦 1–3月: 戊寅(14)  4–6月: 甲午(30)  7–9月: 戊申(44)  10–12月: 甲子(0)
+const TENSHA_MAP = {1:14,2:14,3:14,4:30,5:30,6:30,7:44,8:44,9:44,10:0,11:0,12:0};
+function isTensha(y, m, d) {
+  let { lunarMonth } = getLunarDate(y, m, d);
+  if (lunarMonth > 12) lunarMonth = ((lunarMonth - 1) % 12) + 1;
+  return etoIndex(y, m, d) === TENSHA_MAP[lunarMonth];
+}
+
+// ---- 一粒万倍日 ----
+// 旧暦月 → 該当地支インデックスの配列
+const ICHIRYUU_MAP = {
+  1:[0,1], 2:[2,3], 3:[0,6], 4:[3,4], 5:[6,9], 6:[6,11],
+  7:[0,1], 8:[2,3], 9:[0,6],10:[3,4],11:[6,9],12:[6,11]
+};
+function isIchiryuu(y, m, d) {
+  let { lunarMonth } = getLunarDate(y, m, d);
+  if (lunarMonth > 12) lunarMonth = ((lunarMonth - 1) % 12) + 1;
+  const js = jishi(y, m, d);
+  return (ICHIRYUU_MAP[lunarMonth] || []).includes(js);
+}
+
+// ---- 寅の日 (地支 = 寅 = 2) ----
+function isTora(y, m, d) { return jishi(y, m, d) === 2; }
+
+// ---- 巳の日 (地支 = 巳 = 5) ----
+function isMi(y, m, d) { return jishi(y, m, d) === 5; }
+
+// ---- 天一天上 (干支 index 24〜39: 戊子〜癸卯) ----
+function isTenichiTenjo(y, m, d) {
+  const k = etoIndex(y, m, d);
+  return k >= 24 && k <= 39;
+}
+
+// ---- 不成就日 (日の地支 % 3 == (月-1) % 3) ----
+function isFujoju(y, m, d) {
+  return jishi(y, m, d) % 3 === (m - 1) % 3;
+}
+
+// 吉日カウント (天赦・一粒万倍・寅・巳 を吉日と数える)
+function luckyCount(y, m, d) {
+  return [isTensha,isIchiryuu,isTora,isMi].filter(fn => fn(y,m,d)).length;
+}
+
+// =============================================
+// 日本の祝日
+// =============================================
+function getNthWeekday(year, month, weekday, n) {
+  const d1 = new Date(year, month - 1, 1).getDay();
+  const first = weekday >= d1 ? weekday - d1 + 1 : weekday - d1 + 8;
+  return first + (n - 1) * 7;
+}
+function getEquinox(year, isAutumn) {
+  const base = isAutumn ? 23.2488 : 20.8431;
+  return Math.floor(base + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+}
+function getHolidays(year) {
+  const h = {};
+  const add = (m, d, name) => { if (!h[`${m}-${d}`]) h[`${m}-${d}`] = name; };
+
+  add(1, 1, '元旦');
+  add(1, getNthWeekday(year,1,1,2), '成人の日');
+  add(2, 11, '建国記念の日');
+  if (year >= 2020) add(2, 23, '天皇誕生日');
+  add(3, getEquinox(year, false), '春分の日');
+  add(4, 29, '昭和の日');
+  add(5, 3, '憲法記念日');
+  add(5, 4, 'みどりの日');
+  add(5, 5, 'こどもの日');
+  if      (year === 2020) add(7, 23, '海の日');
+  else if (year === 2021) add(7, 22, '海の日');
+  else                    add(7, getNthWeekday(year,7,1,3), '海の日');
+  if (year >= 2016) {
+    if      (year === 2020) add(8, 10, '山の日');
+    else if (year === 2021) add(8,  8, '山の日');
+    else                    add(8, 11, '山の日');
+  }
+  add(9, getNthWeekday(year,9,1,3), '敬老の日');
+  add(9, getEquinox(year, true), '秋分の日');
+  if      (year === 2020) add(7, 24, 'スポーツの日');
+  else if (year === 2021) add(7, 23, 'スポーツの日');
+  else if (year >= 2020)  add(10, getNthWeekday(year,10,1,2), 'スポーツの日');
+  else                    add(10, getNthWeekday(year,10,1,2), '体育の日');
+  add(11, 3, '文化の日');
+  add(11, 23, '勤労感謝の日');
+  if (year === 2019) {
+    add(4, 30, '国民の休日');
+    add(5,  1, '天皇の即位の日');
+    add(5,  2, '国民の休日');
+    add(10, 22, '即位礼正殿の儀');
+  }
+
+  // 振替休日
+  for (const k of [...Object.keys(h)]) {
+    const [m2, d2] = k.split('-').map(Number);
+    if (new Date(year, m2-1, d2).getDay() === 0) {
+      let nx = new Date(year, m2-1, d2+1);
+      while (h[`${nx.getMonth()+1}-${nx.getDate()}`]) nx.setDate(nx.getDate()+1);
+      h[`${nx.getMonth()+1}-${nx.getDate()}`] = '振替休日';
+    }
+  }
+  // 国民の休日
+  for (let mm = 1; mm <= 12; mm++) {
+    const daysN = new Date(year, mm, 0).getDate();
+    for (let dd = 2; dd < daysN; dd++) {
+      const key = `${mm}-${dd}`;
+      if (h[key]) continue;
+      if (new Date(year, mm-1, dd).getDay() === 0) continue;
+      if (h[`${mm}-${dd-1}`] && h[`${mm}-${dd+1}`]) h[key] = '国民の休日';
+    }
+  }
+  return h;
+}
+
+// =============================================
+// カレンダー描画
+// =============================================
+const today = new Date();
+let curYear  = today.getFullYear();
+let curMonth = today.getMonth() + 1;
+
+const MONTH_JP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const WAREKI = y => y >= 2019 ? `令和${y-2018}年` : y >= 1989 ? `平成${y-1988}年` : `${y}年`;
+
+function renderCalendar(year, month) {
+  document.getElementById('month-title').textContent = `${year}年 ${MONTH_JP[month-1]}`;
+  document.getElementById('year-title').textContent = WAREKI(year);
+
+  const holidays  = getHolidays(year);
+  const grid      = document.getElementById('calendar-grid');
+  grid.innerHTML  = '';
+
+  const firstDay    = new Date(year, month-1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const prevDays    = new Date(year, month-1, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) {
+    const dd = prevDays - firstDay + 1 + i;
+    const pm = month === 1 ? 12 : month - 1;
+    const py = month === 1 ? year - 1 : year;
+    cells.push({ y:py, m:pm, d:dd, other:true });
+  }
+  for (let dd = 1; dd <= daysInMonth; dd++) cells.push({ y:year, m:month, d:dd, other:false });
+  const total = Math.ceil(cells.length / 7) * 7;
+  const nm = month === 12 ? 1 : month + 1;
+  const ny = month === 12 ? year + 1 : year;
+  for (let dd = 1; cells.length < total; dd++) cells.push({ y:ny, m:nm, d:dd, other:true });
+
+  const monthHolidays = [];
+  const monthTensha   = [];
+
+  cells.forEach(({ y, m, d, other }) => {
+    const cell    = document.createElement('div');
+    const dow     = new Date(y, m-1, d).getDay();
+    const hKey    = `${m}-${d}`;
+    const hName   = (!other && y === year) ? holidays[hKey] : null;
+    const isToday = (y === today.getFullYear() && m === today.getMonth()+1 && d === today.getDate());
+
+    // 吉凶日
+    const tensha   = isTensha(y, m, d);
+    const ichiryuu = isIchiryuu(y, m, d);
+    const tora     = isTora(y, m, d);
+    const mi       = isMi(y, m, d);
+    const tenichi  = isTenichiTenjo(y, m, d);
+    const fujoju   = isFujoju(y, m, d);
+    const lucky    = luckyCount(y, m, d);
+
+    // クラス
+    cell.className = 'day-cell';
+    if (other) cell.classList.add('other-month');
+    if (dow === 0 || hName) { cell.classList.add('sunday'); if (dow !== 0) cell.classList.add('holiday'); }
+    if (dow === 6) cell.classList.add('saturday');
+    if (isToday)  cell.classList.add('today');
+    if (tensha)   cell.classList.add('tensha');
+    if (lucky >= 2 && !tensha) cell.classList.add('taikichi');
+
+    const rokuyo = getRokuyo(y, m, d);
+
+    // バッジ HTML
+    let badges = '';
+    if (tensha)   badges += `<span class="sbadge sbadge-tensha">⭐天赦日</span>`;
+    if (ichiryuu) badges += `<span class="sbadge sbadge-ichiryuu">🌱一粒万倍</span>`;
+    if (tora)     badges += `<span class="sbadge sbadge-tora">🐯寅の日</span>`;
+    if (mi)       badges += `<span class="sbadge sbadge-mi">🐍巳の日</span>`;
+    if (tenichi)  badges += `<span class="sbadge sbadge-tenichi">☀天一天上</span>`;
+    if (fujoju)   badges += `<span class="sbadge sbadge-fujoju">✖不成就</span>`;
+
+    // セル内容
+    let inner = '';
+    inner += `<div class="day-num">${isToday ? `<span>${d}</span>` : d}</div>`;
+    if (hName) inner += `<div class="holiday-name">${hName}</div>`;
+    if (badges) inner += `<div class="special-badges">${badges}</div>`;
+    inner += `<div class="rokuyo rokuyo-${rokuyo}">${rokuyo}</div>`;
+    cell.innerHTML = inner;
+    grid.appendChild(cell);
+
+    if (!other) {
+      if (hName)  monthHolidays.push({ d, name: hName });
+      if (tensha) monthTensha.push(d);
+    }
+  });
+
+  // サマリー
+  const summary = document.getElementById('month-summary');
+  let html = `<h3>📅 ${year}年${MONTH_JP[month-1]} まとめ</h3>`;
+
+  if (monthHolidays.length) {
+    html += `<div style="margin-bottom:6px;font-size:0.75rem;color:#888;">祝日・休日</div>
+      <div class="tag-list">
+        ${monthHolidays.filter((v,i,a)=>a.findIndex(x=>x.d===v.d)===i)
+          .map(hh=>`<span class="tag-holiday">${hh.d}日 ${hh.name}</span>`).join('')}
+      </div>`;
+  }
+  if (monthTensha.length) {
+    html += `<div style="margin:8px 0 4px;font-size:0.75rem;color:#888;">⭐ 天赦日（最強開運日）</div>
+      <div class="tag-list">
+        ${monthTensha.map(dd=>`<span class="tag-lucky">⭐ ${dd}日</span>`).join('')}
+      </div>`;
+  }
+  if (!monthHolidays.length && !monthTensha.length) {
+    html += `<span style="color:#aaa;">特記事項なし</span>`;
+  }
+  summary.innerHTML = html;
+}
+
+function prevMonth() {
+  if (--curMonth < 1)  { curMonth = 12; curYear--; }
+  renderCalendar(curYear, curMonth);
+}
+function nextMonth() {
+  if (++curMonth > 12) { curMonth = 1;  curYear++; }
+  renderCalendar(curYear, curMonth);
+}
+function goToday() {
+  curYear  = today.getFullYear();
+  curMonth = today.getMonth() + 1;
+  renderCalendar(curYear, curMonth);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft')  prevMonth();
+  if (e.key === 'ArrowRight') nextMonth();
+});
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive:true });
+document.addEventListener('touchend',   e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 60) dx < 0 ? nextMonth() : prevMonth();
+});
+
+renderCalendar(curYear, curMonth);
+</script>
+</body>
+</html>
