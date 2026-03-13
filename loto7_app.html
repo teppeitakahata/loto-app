@@ -107,13 +107,49 @@
   .mode-btn.active.normal { background: linear-gradient(135deg, #f7971e, #ffd200); color: #1a1a2e; border-color: transparent; }
   .mode-btn.active.rare { background: linear-gradient(135deg, #ee0979, #ff6a00); color: white; border-color: transparent; }
   .rare-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; background: rgba(238,9,121,0.15); color: #ff8c42; border: 1px solid rgba(238,9,121,0.3); font-size: 0.7rem; font-weight: bold; margin-left: 4px; }
+  .refresh-btn {
+    display: block;
+    margin: 10px auto 0;
+    padding: 10px 28px;
+    background: linear-gradient(135deg, #00b09b, #2196f3);
+    color: white;
+    border: none;
+    border-radius: 24px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,176,155,0.4);
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .refresh-btn:hover { opacity: 0.88; transform: scale(1.04); }
+  .refresh-btn:active { transform: scale(0.97); }
+
+  /* プルダウンリフレッシュ */
+  #ptr-indicator {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 0;
+    background: linear-gradient(135deg, #00b09b, #2196f3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: bold;
+    overflow: hidden;
+    transition: height 0.1s;
+    z-index: 999;
+  }
 </style>
 </head>
 <body>
 
+<div id="ptr-indicator"></div>
 <header>
   <h1>LOTO7 当選番号分析アプリ</h1>
   <p id="header-desc">データ読み込み中...</p>
+  <button class="refresh-btn" onclick="location.reload(true)">🔄 最新データに更新</button>
 </header>
 
 <div class="container">
@@ -757,6 +793,34 @@ window.addEventListener('load', () => {
   renderTable();
   renderRare();
 });
+// ===== プルダウンリフレッシュ =====
+(function() {
+  let startY = 0, pulling = false;
+  const THRESHOLD = 70;
+  const ind = document.getElementById('ptr-indicator');
+
+  document.addEventListener('touchstart', e => {
+    if (window.scrollY === 0) { startY = e.touches[0].clientY; pulling = true; }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const dy = Math.min(e.touches[0].clientY - startY, THRESHOLD * 1.5);
+    if (dy > 0) {
+      ind.style.height = Math.min(dy, THRESHOLD) + 'px';
+      ind.textContent = dy >= THRESHOLD ? '🔄 離して更新' : '↓ 引っ張って更新';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (!pulling) return;
+    pulling = false;
+    const h = parseFloat(ind.style.height || '0');
+    ind.style.height = '0';
+    if (h >= THRESHOLD) { setTimeout(() => location.reload(true), 150); }
+  });
+})();
+
 </script>
 </body>
 </html>
